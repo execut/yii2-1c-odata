@@ -65,7 +65,7 @@ execut\oData\ActiveRecord and execut\oData\ActiveQuery
 ## Your help was, would be useful
 For more information, there is not enough time =(
 
-## Dispositions
+## Planned
 * Unit tests cover
 * Extending functional to standard oData, without 1C
 
