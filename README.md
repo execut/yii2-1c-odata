@@ -19,6 +19,20 @@ or add
 
 to the ```require``` section of your `composer.json` file.
 
+Temporarily until they accept the request https://github.com/kilylabs/odata-1c/pull/1 set my fork in you root composer.json:
+```
+  "require": {
+    ...
+    "kilylabs/odata-1c": "dev-execut-extending",
+  },
+  "repositories": [
+    {
+      "type": "vcs",
+      "url": "https://github.com/execut/odata-1c.git"
+    }
+  ]
+```
+
 ## Configuration example
 Add to application config folowing rules:
 ```php
