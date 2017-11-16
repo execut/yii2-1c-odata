@@ -297,6 +297,10 @@ class ActiveQuery extends \yii\db\ActiveQuery
      */
     protected function parseWhere($where, $condition = 'and')
     {
+        if (is_string($where)) {
+            return [$where];
+        }
+
         $searchQueries = [];
         if (isset($where[0])) {
             $condition = $where[0];
