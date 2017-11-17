@@ -305,9 +305,9 @@ class ActiveQuery extends \yii\db\ActiveQuery
         if (isset($where[0])) {
             $condition = $where[0];
             unset($where[0]);
-            if (strtolower($condition) === 'ilike') {
+            if (strtolower($condition) === 'ilike' || strtolower($condition) === 'like') {
                 if (!empty($where[1]) && !empty($where[2]) && is_string($where[1]) && is_string($where[2])) {
-                    $searchQueries[] = 'like(' . $where[1] . ',\'%' . $where[2] . '%\')';
+                    $searchQueries[] = $this->buildColumnCondition($where[1], '%' . $where[2] . '%', 'like');
                 }
             } else if (strtolower($condition) === 'in') {
                 if (!empty($where[1]) && !empty($where[2])) {
@@ -348,8 +348,6 @@ class ActiveQuery extends \yii\db\ActiveQuery
             }
         } else {
             foreach ($where as $attribute => $value) {
-
-
                 if ($value instanceof \yii\db\ActiveQuery) {
                     $value = $value->column();
                 }
@@ -374,12 +372,12 @@ class ActiveQuery extends \yii\db\ActiveQuery
         return $searchQueries;
     }
 
-    protected function buildColumnCondition($column, $value) {
+    protected function buildColumnCondition($column, $value, $operator = null) {
         $class = $this->modelClass;
         $builder = new ConditionBuilder([
             'tableSchema' => $class::getTableSchema()
         ]);
-        return $builder->buildColumnCondition($column, $value);
+        return $builder->buildColumnCondition($column, $value, $operator);
     }
 
     /**

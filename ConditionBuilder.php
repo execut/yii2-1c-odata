@@ -19,31 +19,32 @@ class ConditionBuilder extends BaseObject
         return $value === null;
     }
 
-    public function buildColumnCondition($column, $value) {
-        $type = $this->getColumnType($column);
-        switch ($type) {
-            case 'text2':
-                return 'substringof(\'' . $value . '\', ' . $column . ') eq true';
+    public function buildColumnCondition($column, $value, $operator = null) {
+        if ($operator == null) {
+            $operator = $this->detectOperatorByColumnType($column);
+        }
+
+        $value = $this->escapeValue($value);
+
+        switch ($operator) {
+            case 'substringof':
+                return 'substringof(\'' . $value . '\', ' . $column . ')';
                 break;
-            case 'text':
-                return 'like(' . $column . ', \'' . $value . '\') eq true';
+            case 'like':
+                return 'like(' . $column . ', \'' . $value . '\')';
                 break;
-            case 'Edm.Guid':
+            case 'eqGuid':
                 if ($this->isEmptyGuid($value)) {
                     return;
                 }
 
                 return $column . ' eq guid\'' . $value . '\'';
                 break;
-            case 'Edm.String':
+            case 'eq':
                 return '\'' . $value . '\' eq ' . $column . '';
                 break;
-            case 'Edm.Int64':
-            case 'Edm.Double':
-            case 'Edm.Int':
-                return $column . ' eq ' . $value;
-                break;
-            case 'Edm.Boolean':
+            case 'bool':
+                $value = (bool) $value;
                 if ($value) {
                     $value = 'true';
                 } else {
@@ -52,7 +53,9 @@ class ConditionBuilder extends BaseObject
 
                 return $column . ' eq ' . $value;
                 break;
-            default:
+            case 'castToGuid':
+                $type = $this->getColumnType($column);
+
                 return $column . ' eq cast(guid\'' . $value . '\', \'' . $type . '\')';
         }
     }
@@ -64,5 +67,35 @@ class ConditionBuilder extends BaseObject
         }
 
         return $column->dbType;
+    }
+
+    public function escapeValue($value) {
+        return str_replace(['\'', '%27', "\n", "\r"], '', $value);
+    }
+
+    public function detectOperatorByColumnType($column) {
+        $type = $this->getColumnType($column);
+        switch ($type) {
+            case 'text2':
+                return 'substringof';
+                break;
+            case 'text':
+                return 'like';
+                break;
+            case 'Edm.Guid':
+                return 'eqGuid';
+                break;
+            case 'Edm.String':
+            case 'Edm.Int64':
+            case 'Edm.Double':
+            case 'Edm.Int':
+                return 'eq';
+                break;
+            case 'Edm.Boolean':
+                return 'bool';
+                break;
+            default:
+                return 'castToGuid';
+        }
     }
 }

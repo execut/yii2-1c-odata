@@ -24,6 +24,6 @@ class Profiler extends \Kily\Tools1C\OData\Profiler
     }
 
     protected function getMessage() {
-        return trim($this->request->getHost(), '/') . $this->request->getUrl() . ' (' . $this->request->getMethod() . '), options: ' . var_export($this->request->getOptions(), true);
+        return trim($this->request->getHost(), '/') . '/' . $this->request->getUrl() . ' (' . $this->request->getMethod() . '), options: ' . var_export($this->request->getOptions(), true);
     }
 }
