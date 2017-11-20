@@ -15,6 +15,8 @@ use yii\helpers\ArrayHelper;
 
 class ActiveQuery extends \yii\db\ActiveQuery
 {
+    const EMPTY_CONDITION_STUB = 'true eq false';
+
     public function findWith($with, &$models)
     {
         return parent::findWith($with, $models);
@@ -90,7 +92,7 @@ class ActiveQuery extends \yii\db\ActiveQuery
             } else {
                 $id = $this->primaryModel->$primaryKey;
                 if (empty($id)) {
-                    return ['true eq false'];
+                    return [self::EMPTY_CONDITION_STUB];
                 }
 
                 $this->andWhere([
@@ -355,7 +357,7 @@ class ActiveQuery extends \yii\db\ActiveQuery
                 if (is_array($value)) {
                     $subWhere = [];
                     if (empty($value)) {
-                        $subWhere[] = 'true eq false';
+                        $subWhere[] = self::EMPTY_CONDITION_STUB;
                     } else {
                         foreach ($value as $v) {
                             $subWhere[] = $this->buildColumnCondition($attribute, $v);
