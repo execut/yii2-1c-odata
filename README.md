@@ -62,6 +62,40 @@ Add to application config folowing rules:
 After configuration, you must declare your models and queries on the basis of two classes:
 execut\oData\ActiveRecord and execut\oData\ActiveQuery
 
+Example model for standard document ЧекККМ ([source here](https://github.com/execut/yii2-1c-odata/tree/master/docs/models)): 
+```php
+use execut\oData\ActiveRecord;
+
+class CheckKkm extends ActiveRecord
+{
+    public $complexRelations = [
+        'Оплата',
+        'Заказы'
+    ];
+
+    public function getОплата() {
+        return $this->hasMany(CheckKkmPayment::class, [
+            'Ref_Key' => 'Ref_Key',
+        ]);
+    }
+
+    public static function tableName()
+    {
+        return 'Document_ЧекККМ';
+    }
+}
+
+$check = CheckKkm::find()->andWhere([
+    'Ref_Key' => '00000000-0000-0000-0000-000000000001'
+])->one();
+if ($check) {
+    $check->attributes = [
+        //...
+    ];
+    $check->save();
+}
+```
+
 ## Your help was, would be useful
 For more information, there is not enough time =(
 
