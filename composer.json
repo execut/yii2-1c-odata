@@ -15,7 +15,7 @@
   ],
   "require": {
     "yiisoft/yii2": "*",
-    "kilylabs/odata-1c": "*"
+    "execut/odata-1c": "*"
 
   },
   "autoload": {
