@@ -67,7 +67,13 @@ class ActiveQuery extends \yii\db\ActiveQuery
         $client = $this->getClient();
         $count = 0;
         foreach ($filters as $filter) {
-            $count += $client->{$table . '/$count'}->get(null, $filter, $this->getOptions());
+            $subCount = $client->{$table . '/$count'}->get(null, $filter, $this->getOptions());
+            if (!is_int($subCount) && !is_string($subCount)) {
+                throw new BadCountResultException('Bad returned count result: ' . var_export($subCount, true));
+            }
+
+
+            $count += $subCount;
             if (!$count) {
                 break;
             }
@@ -138,8 +144,9 @@ class ActiveQuery extends \yii\db\ActiveQuery
                     $idKey => $viaQuery->select($primaryKey),
                 ]);
             } else {
+                $pk = $this->primaryModel->$primaryKey;
                 $this->andWhere([
-                    $idKey => $this->primaryModel->$primaryKey
+                    $idKey => $pk
                 ]);
             }
         }
@@ -167,7 +174,12 @@ class ActiveQuery extends \yii\db\ActiveQuery
 
         if ($this->limit !== -1) {
             $query['$top'] = $this->limit;
+        } else {
+//            $query['$top'] = 1;
+//            throw new Exception('Query without limit');
         }
+
+//        $query['$top'] = 1;
 
         if (!empty($this->select)) {
             $query['$select'] = implode(',', $this->select);
@@ -190,6 +202,8 @@ class ActiveQuery extends \yii\db\ActiveQuery
                 continue;
             }
 
+            $attribute = trim($attribute, '\'');
+            $attribute = '\'' . $attribute . '\'';
             if ($direction === SORT_ASC) {
                 $direction = 'asc';
             } else {
@@ -199,6 +213,11 @@ class ActiveQuery extends \yii\db\ActiveQuery
             $orderParts[] = $attribute . ' ' . $direction;
         }
         return implode(',', $orderParts);
+    }
+
+    public function exists($db = null)
+    {
+        return $this->count() > 0;
     }
 
     /**
@@ -277,7 +296,7 @@ class ActiveQuery extends \yii\db\ActiveQuery
 
             $filter = $filterPrefx . '(' . $currentFilterPostfix . ')';
             if (strlen($filter) > self::MAX_WHERE_LENGTH) {
-                throw new Exception('Very big condition. Make it smaller');
+                throw new Exception('Very big condition. Make it smaller: ' . $filter);
             }
 
             if ($key + 1 == count($arrayValue) || strlen($filterPrefx . '(' . $currentFilterPostfix . ' or ' . $arrayValue[$key + 1]) > self::MAX_WHERE_LENGTH) {
@@ -326,7 +345,9 @@ class ActiveQuery extends \yii\db\ActiveQuery
                     }
 
                     if ($where[2] instanceof \yii\db\ActiveQuery) {
-                        $where[2] = $where[2]->column();
+                        $ids = $where[2]->column();
+                        $ids = array_filter($ids);
+                        $where[2] = $ids;
                     }
 
                     if (is_array($where[2])) {
@@ -352,6 +373,7 @@ class ActiveQuery extends \yii\db\ActiveQuery
             foreach ($where as $attribute => $value) {
                 if ($value instanceof \yii\db\ActiveQuery) {
                     $value = $value->column();
+                    $value = array_filter($value);
                 }
 
                 if (is_array($value)) {
@@ -394,42 +416,38 @@ class ActiveQuery extends \yii\db\ActiveQuery
             return [];
         }
 
-        if ($this->indexBy === null) {
-            $data = $this->getData();
-            $pks = $this->primaryModel::primaryKey();
-            $result = [];
-            foreach ($data as $row) {
-                $key = [];
-                foreach ($pks as $pk) {
-                    $key[] = $row[$pk];
-                }
-
-                $key = implode('-', $key);
-
-                $result[$key] = $row;
-            }
-
-            return $result;
-        }
-
-        if (is_string($this->indexBy) && is_array($this->select) && count($this->select) === 1) {
-            if (!in_array($this->indexBy, $this->select)) {
-                $this->select[] = $this->indexBy;
-            }
-        }
-
         $rows = $this->getData();
         $results = [];
+        if (count($this->select) !== 1) {
+            throw new Exception('Select column with array of columns impossible. Select list: ' . var_export($this->select, true));
+        }
+
+        $selectedColumn = current($this->select);
         foreach ($rows as $row) {
-            $value = reset($row);
+            if (!array_key_exists($selectedColumn, $row)) {
+                throw new Exception('Failed to get column from data. Data: ' . var_export($rows, true) . '. Row: ' . var_export($row, true));
+            }
+
+            $value = $row[$selectedColumn];
 
             if ($this->indexBy instanceof \Closure) {
                 $results[call_user_func($this->indexBy, $row)] = $value;
             } else {
-                $results[$row[$this->indexBy]] = $value;
+                $results[] = $value;
             }
         }
 
         return $results;
+    }
+
+    /**
+     * Executes the query and returns the first column of the result.
+     * @param Connection $db the database connection used to generate the SQL statement.
+     * If this parameter is not given, the `db` application component will be used.
+     * @return array the first column of the query result. An empty array is returned if the query results in nothing.
+     */
+    public function scalar($db = null)
+    {
+        return current($this->column());
     }
 }

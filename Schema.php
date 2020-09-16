@@ -34,6 +34,9 @@ class Schema extends \yii\db\Schema
             return $result;
         }
 
+        if ($this->client->isConnectionError()) {
+            return false;
+        }
         $metadata = $this->client->getMetadata();
         $result = array_merge($metadata['EntityType'], $metadata['ComplexType']);
         $cache->set($cacheKey, $result);
@@ -44,12 +47,14 @@ class Schema extends \yii\db\Schema
     public function getTableSchema($name, $refresh = false)
     {
         $cache = \yii::$app->cache;
-        $cacheKey = __CLASS__ . __FUNCTION__ . var_export($this->getCustomColumnsTypes(), true) . '9' . $name;
+        $cacheKey = __CLASS__ . __FUNCTION__ . var_export($this->getCustomColumnsTypes(), true) . '14' . $name;
         if ($schema = $cache->get($cacheKey)) {
             return $schema;
         }
 
         $metadata = $this->getMetadata();
+        $name = preg_replace('/\(\)$/', '', str_replace('/', '_', $name));
+        $name = str_replace('_BalanceAndTurnovers', '_BalanceAndTurnover', $name);
 
         foreach ($metadata as $params) {
             if ($params['@attributes']['Name'] === $name) {

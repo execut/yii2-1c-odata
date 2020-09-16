@@ -61,6 +61,9 @@ class ConditionBuilder extends BaseObject
     }
 
     protected function getColumnType($name) {
+        if ($name === 'Заказы/Заказ_Key') {
+            return 'Edm.Guid';
+        }
         $column = $this->tableSchema->getColumn($name);
         if (!$column) {
             throw new Exception('Column "' . $name . '" is not found');

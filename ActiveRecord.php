@@ -20,6 +20,21 @@ class ActiveRecord extends \yii\db\ActiveRecord
         return new ActiveQuery(static::class);
     }
 
+    protected static $attributesCache = [];
+    /**
+     * Returns the list of all attribute names of the model.
+     * The default implementation will return all column names of the table associated with this AR class.
+     * @return array list of attribute names.
+     */
+    public function attributes()
+    {
+        if (array_key_exists(static::tableName(), static::$attributesCache)) {
+            return static::$attributesCache[static::tableName()];
+        }
+
+        return static::$attributesCache[static::tableName()] = parent::attributes();
+    }
+
     /**
      * @inheritdoc
      */
@@ -35,7 +50,7 @@ class ActiveRecord extends \yii\db\ActiveRecord
         return $this->refreshInternal($record);
     }
 
-    public static function updateAll($attributes, $condition = NULL) {
+    public static function updateAll($attributes, $condition = NULL, $params = []) {
 //        if ($condition === null || count($condition) != 1 || empty($condition['Ref_Key'])) {
 //            throw new \yii\base\Exception('updateAll allowed only update by Ref_Key');
 //        }
@@ -43,13 +58,15 @@ class ActiveRecord extends \yii\db\ActiveRecord
 //        $id = $condition['Ref_Key'];
         $client = self::getClient();
         $attributes = static::filtrateAttributes($attributes);
-        if (empty($condition['Ref_Key'])) {
-            $client->{static::tableName() . self::buildIdFilter($condition)}->delete(null);
-            $result = $client->{static::tableName()}->create(ArrayHelper::merge($attributes, $condition));
-        } else {
-            $id = $condition['Ref_Key'];
-            $result = $client->{static::tableName()}->update($id, $attributes);
-        }
+        $result = self::doTries(function () use ($client, $attributes, $condition) {
+            if (empty($condition['Ref_Key'])) {
+                $client->{static::tableName() . self::buildIdFilter($condition)}->delete(null);
+                return $client->{static::tableName()}->create(ArrayHelper::merge($attributes, $condition));
+            } else {
+                $id = $condition['Ref_Key'];
+                return $client->{static::tableName()}->update($id, $attributes);
+            }
+        });
 
         return $result;
     }
@@ -79,14 +96,16 @@ class ActiveRecord extends \yii\db\ActiveRecord
     public static function deleteAll($condition = null, $params = []) {
         $client = self::getClient();
 
-        if (empty($condition['Ref_Key'])) {
-            $client->{static::tableName() . self::buildIdFilter($condition)}->delete(null);
-        } else {
-            $id = $condition['Ref_Key'];
-            $client->{static::tableName()}->update($id, [
-                'DeletionMark' => true,
-            ]);
-        }
+        self::doTries(function () use ($client, $condition) {
+            if (empty($condition['Ref_Key'])) {
+                $client->{static::tableName() . self::buildIdFilter($condition)}->delete(null);
+            } else {
+                $id = $condition['Ref_Key'];
+                $client->{static::tableName()}->update($id, [
+                    'DeletionMark' => true,
+                ]);
+            }
+        });
 
         return true;
     }
@@ -136,7 +155,7 @@ class ActiveRecord extends \yii\db\ActiveRecord
 
     public static function getDb()
     {
-        throw new Exception(__FUNCTION__ . ' is not implemented');
+//        throw new Exception(__FUNCTION__ . ' is not implemented');
     }
 
 //    public static function instantiate($row) {
@@ -202,23 +221,64 @@ class ActiveRecord extends \yii\db\ActiveRecord
         $client = self::getClient();
         $attributes = static::filtrateAttributes($this->attributes);
         foreach ($this->complexRelations as $relation) {
-            $attributes[$relation] = $this->$relation;
+            $models = $this->$relation;
+            foreach ($models as $key => $model) {
+                if (!is_array($model)) {
+                    $models[$key] = $model->attributes;
+                }
+            }
+
+            $attributes[$relation] = $models;
+            $this->$relation = [];
         }
 
-        $client->{static::tableName()};
-
-        if ($this->isNewRecord) {
-            $result = $client->$operation($attributes);
-        } else {
-            $result = $client->$operation($this->primaryKey, $attributes);
-        }
+        $try = function () use ($client, $operation, $attributes) {
+            $client->{static::tableName()};
+            if ($this->isNewRecord) {
+                return $client->$operation($attributes);
+            } else {
+                return $client->$operation($this->primaryKey, $attributes);
+            }
+        };
+        $result = $this->doTries($try);
 
         return $result;
+    }
+
+    /**
+     * @param $try
+     * @return bool
+     * @throws \execut\oData\Exception
+     */
+    protected static function doTries($try) {
+        $key = 0;
+        do {
+            try {
+                return $try();
+            } catch (\execut\oData\Exception $e) {
+                if (strpos($e->getMessage(), 'ПриЗаписи') !== false) {
+                    if ($key === 2) {
+                        throw $e;
+                    }
+
+                    $key++;
+                    sleep(1);
+                    continue;
+                }
+
+                throw $e;
+            }
+        } while ($key < 3);
     }
 
     public function doRequest($request) {
         $client = self::getClient();
         $client->{static::tableName() . '(guid\'' . $this->primaryKey . '\')/' . $request};
         return $client->request('POST');
+    }
+
+    protected static function filterCondition(array $condition, array $aliases = [])
+    {
+        return $condition;
     }
 }
