@@ -257,6 +257,7 @@ class ActiveRecord extends \yii\db\ActiveRecord
                 return $try();
             } catch (\execut\oData\Exception $e) {
                 if (strpos($e->getMessage(), 'ПриЗаписи') !== false) {
+                    \yii::error('Ошибка обработчика при записи ' . $e->getMessage());
                     if ($key === 2) {
                         throw $e;
                     }
