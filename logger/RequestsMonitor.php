@@ -29,7 +29,7 @@ class RequestsMonitor extends \Kily\Tools1C\OData\Profiler
         if ($this->monitor === null) {
             $this->monitor = \yii::createObject([
                 'class' => \execut\requestsMonitor\Monitor::class,
-                'maxRequests' => 10,
+                'maxRequests' => 15,
                 'requestTimeLimit' => 30 * 1000 * 1000,
                 'requestsStorage' => [
                     'class' => \execut\requestsMonitor\requestsStorage\MutexStorage::class,
