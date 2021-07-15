@@ -73,7 +73,7 @@ class ConditionBuilder extends BaseObject
     }
 
     public function escapeValue($value) {
-        return str_replace(['\'', '%27', "\n", "\r"], '', $value);
+        return str_replace(['\'', '%27', "\n", "\r", "\0"], '', $value);
     }
 
     public function detectOperatorByColumnType($column) {
